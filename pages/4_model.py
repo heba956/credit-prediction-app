@@ -198,11 +198,11 @@ for i, actual in enumerate(labels_y_flip):       # i=0 → 'Poor' (bottom of fli
         count   = cm[raw_i, j]
         pct     = cm_pct[raw_i, j]
         is_diag = (raw_i == j)
-        # Bold the count with larger size; show percentage below
+        # Use <br> for line break (Plotly does NOT support \n in annotations)
         annotations.append(dict(
             x=predicted,
             y=actual,
-            text=f'{count:,}\n{pct:.1f}%',       # plain text, \n for newline
+            text=f'<b>{count:,}</b><br>{pct:.1f}%',
             showarrow=False,
             font=dict(
                 color='white' if pct > 35 else TEXT,
@@ -309,16 +309,16 @@ comparison = pd.DataFrame({
     'F1 Score': [77.1, 75.5, 72.3, 65.0, 16.0],
 })
 
+# Per-bar colors: highlight the winner (Random Forest) in accent, others muted
+acc_colors = [ACCENT if '★' in m else '#2A2A4A' for m in comparison['Model']]
+f1_colors  = [BLUE   if '★' in m else '#1E2A3A' for m in comparison['Model']]
+
 fig_comp = go.Figure()
 fig_comp.add_trace(go.Bar(
     name='Accuracy',
     x=comparison['Model'],
     y=comparison['Accuracy'],
-    marker=dict(
-        color=comparison['Accuracy'],
-        colorscale=[[0, '#1E1E3A'], [1, ACCENT]],
-        showscale=False,
-    ),
+    marker_color=acc_colors,
     opacity=0.88,
     text=[f'{v:.1f}%' for v in comparison['Accuracy']],
     textposition='outside',
@@ -328,11 +328,7 @@ fig_comp.add_trace(go.Bar(
     name='F1 Score',
     x=comparison['Model'],
     y=comparison['F1 Score'],
-    marker=dict(
-        color=comparison['F1 Score'],
-        colorscale=[[0, '#1A1A30'], [1, BLUE]],
-        showscale=False,
-    ),
+    marker_color=f1_colors,
     opacity=0.88,
     text=[f'{v:.1f}%' for v in comparison['F1 Score']],
     textposition='outside',
@@ -387,4 +383,5 @@ st.markdown("""
   </div>
 </div>
 """, unsafe_allow_html=True)
+
 
