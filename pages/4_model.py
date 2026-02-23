@@ -9,14 +9,16 @@ warnings.filterwarnings('ignore')
 GOOD  = '#00E5A0'; STD = '#FFD166'; POOR = '#FF4D6D'; ACCENT = '#BD93F9'
 BG = '#07070F'; PANEL = '#11111E'; GRID = '#1C1C2E'; TEXT = '#E8E8F5'; MUTED = '#444466'
 
+# ── FIXED: no yaxis/xaxis in base layout — set per-chart instead ──────────────
 PLOTLY_LAYOUT = dict(
-    paper_bgcolor=BG, plot_bgcolor=PANEL,
+    paper_bgcolor=BG,
+    plot_bgcolor=PANEL,
     font=dict(family='Space Mono, monospace', color=TEXT, size=11),
-    xaxis=dict(gridcolor=GRID, linecolor=GRID, zerolinecolor=GRID),
-    yaxis=dict(gridcolor=GRID, linecolor=GRID, zerolinecolor=GRID),
     legend=dict(bgcolor='rgba(0,0,0,0)', bordercolor=GRID),
     margin=dict(t=50, b=40, l=160, r=40)
 )
+
+AXIS_STYLE = dict(gridcolor=GRID, linecolor=GRID, zerolinecolor=GRID)
 
 @st.cache_resource
 def load_model():
@@ -58,8 +60,6 @@ st.markdown("""
 
 rf = model.named_steps['classifier']
 importances = pd.Series(rf.feature_importances_, index=columns).sort_values(ascending=True).tail(20)
-
-# Highlight top features with accent color
 bar_colors = [ACCENT if v > importances.quantile(0.8) else '#2A2A4A' for v in importances.values]
 
 fig_imp = go.Figure(go.Bar(
@@ -73,11 +73,13 @@ fig_imp = go.Figure(go.Bar(
     textfont=dict(color=MUTED, size=9)
 ))
 fig_imp.update_layout(
-    **PLOTLY_LAYOUT, height=580,
+    **PLOTLY_LAYOUT,
+    height=580,
     title='Top 20 Feature Importances (Random Forest)',
     xaxis_title='Importance Score',
     showlegend=False,
-    yaxis=dict(gridcolor=GRID, linecolor=GRID, tickfont=dict(size=10))
+    xaxis=dict(**AXIS_STYLE),
+    yaxis=dict(**AXIS_STYLE, tickfont=dict(size=10))
 )
 st.plotly_chart(fig_imp, use_container_width=True)
 
@@ -90,11 +92,10 @@ st.markdown("""
 <p style='color:#666688;font-size:0.85rem'>Rows = actual class · Columns = predicted class · Diagonal = correct predictions</p>
 """, unsafe_allow_html=True)
 
-# Hardcoded from our test run (avoids retraining)
 cm = np.array([
-    [1325,  459,   80],   # Good   (actual)
-    [ 327, 2094,  493],   # Standard (actual)
-    [  50,  512, 1023],   # Poor   (actual)
+    [1325,  459,   80],
+    [ 327, 2094,  493],
+    [  50,  512, 1023],
 ])
 labels = ['Good', 'Standard', 'Poor']
 cm_pct = cm / cm.sum(axis=1, keepdims=True) * 100
@@ -110,13 +111,10 @@ for i in range(3):
         ))
 
 fig_cm = go.Figure(go.Heatmap(
-    z=cm_pct,
-    x=labels, y=labels,
+    z=cm_pct, x=labels, y=labels,
     colorscale=[[0,'#0D0D1C'],[0.5,'#1A1A3A'],[1,'#BD93F9']],
     showscale=False,
-    text=[[f'{cm[i,j]:,}\n{cm_pct[i,j]:.1f}%' for j in range(3)] for i in range(3)],
 ))
-
 fig_cm.update_layout(
     **PLOTLY_LAYOUT,
     height=380,
@@ -124,11 +122,12 @@ fig_cm.update_layout(
     xaxis_title='Predicted',
     yaxis_title='Actual',
     margin=dict(t=50, b=60, l=80, r=20),
-    title='Confusion Matrix — Test Set (n=5,946)'
+    title='Confusion Matrix — Test Set',
+    xaxis=dict(**AXIS_STYLE),
+    yaxis=dict(**AXIS_STYLE),
 )
 st.plotly_chart(fig_cm, use_container_width=True)
 
-# Insight callouts
 i1, i2, i3 = st.columns(3)
 i1.markdown(f"""
 <div style='background:#0A1A13;border:1px solid {GOOD};border-radius:8px;padding:16px'>
@@ -137,15 +136,13 @@ i1.markdown(f"""
     <div style='color:#446655;font-size:0.8rem'>recall — minority class is hardest to predict</div>
 </div>
 """, unsafe_allow_html=True)
-
 i2.markdown(f"""
 <div style='background:#1A1A0A;border:1px solid {STD};border-radius:8px;padding:16px'>
     <div style='font-family:Space Mono,monospace;font-size:0.6rem;color:{STD};letter-spacing:3px'>STANDARD</div>
     <div style='font-size:1.4rem;font-weight:700;color:{STD};font-family:Space Mono,monospace'>72.2%</div>
-    <div style='color:#665544;font-size:0.8rem'>recall — acts as a "gravity well" for errors</div>
+    <div style='color:#665544;font-size:0.8rem'>recall — acts as a gravity well for errors</div>
 </div>
 """, unsafe_allow_html=True)
-
 i3.markdown(f"""
 <div style='background:#1A0A0E;border:1px solid {POOR};border-radius:8px;padding:16px'>
     <div style='font-family:Space Mono,monospace;font-size:0.6rem;color:{POOR};letter-spacing:3px'>POOR TIER</div>
@@ -156,7 +153,7 @@ i3.markdown(f"""
 
 st.markdown("<hr style='border-color:#1C1C2E;margin:28px 0'/>", unsafe_allow_html=True)
 
-# ── MODEL COMPARISON ─────────────────────────────────────────────────────────
+# ── MODEL COMPARISON ──────────────────────────────────────────────────────────
 st.markdown("""
 <div style='font-family:Space Mono,monospace;font-size:0.65rem;color:#444466;letter-spacing:4px'>ALL MODELS</div>
 <h2 style='margin-top:2px'>Model Comparison</h2>
@@ -166,27 +163,23 @@ comparison = pd.DataFrame({
     'Model':    ['Random Forest ★', 'Gradient Boosting', 'Decision Tree', 'Logistic Regression', 'Naive Bayes'],
     'Accuracy': [77.0, 75.6, 72.3, 65.0, 32.6],
     'F1 Score': [77.1, 75.5, 72.3, 65.0, 16.0],
-    'Speed':    ['Fast', 'Slow', 'Fast', 'Fast', 'Very Fast'],
 })
 
 fig_comp = go.Figure()
-fig_comp.add_trace(go.Bar(
-    name='Accuracy', x=comparison['Model'], y=comparison['Accuracy'],
-    marker_color=ACCENT, opacity=0.85
-))
-fig_comp.add_trace(go.Bar(
-    name='F1 Score', x=comparison['Model'], y=comparison['F1 Score'],
-    marker_color='#555580', opacity=0.85
-))
+fig_comp.add_trace(go.Bar(name='Accuracy', x=comparison['Model'],
+                          y=comparison['Accuracy'], marker_color=ACCENT, opacity=0.85))
+fig_comp.add_trace(go.Bar(name='F1 Score', x=comparison['Model'],
+                          y=comparison['F1 Score'], marker_color='#555580', opacity=0.85))
 fig_comp.update_layout(
-    **PLOTLY_LAYOUT, barmode='group',
+    **PLOTLY_LAYOUT,
+    barmode='group',
     margin=dict(t=50, b=60, l=60, r=20),
     title='Accuracy & F1 Score Across All Tested Models',
-    yaxis_title='Score (%)', yaxis_range=[0, 100]
+    xaxis=dict(**AXIS_STYLE),
+    yaxis=dict(**AXIS_STYLE, title='Score (%)', range=[0, 100]),
 )
 st.plotly_chart(fig_comp, use_container_width=True)
 
-# ── ABOUT ─────────────────────────────────────────────────────────────────────
 st.markdown("<hr style='border-color:#1C1C2E;margin:28px 0'/>", unsafe_allow_html=True)
 st.markdown("""
 <div style='font-family:Space Mono,monospace;font-size:0.65rem;color:#444466;letter-spacing:4px;margin-bottom:12px'>ABOUT THIS PROJECT</div>
