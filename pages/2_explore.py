@@ -183,3 +183,4 @@ fig_bub.update_layout(
     yaxis=dict(**PLOTLY_LAYOUT['yaxis'], tickformat='$,.0f'),
 )
 st.plotly_chart(fig_bub, use_container_width=True)
+
